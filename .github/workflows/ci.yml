@@ -42,3 +42,22 @@ jobs:
       - run: ruff check worker
       - run: mypy worker/src worker/tests
       - run: pytest worker
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.25.0
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm supabase:start
+      - run: pnpm supabase:lint
+      - run: pnpm supabase:test
+      - if: always()
+        run: pnpm exec supabase stop

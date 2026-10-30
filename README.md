@@ -26,6 +26,7 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - Atomic persistence of jobs, events, source checks, and source health.
 - Deduplication by source job ID with a canonical fallback key.
 - Immutable `first_seen_at`, stale-run protection, and reopening events.
+- Database-backed source selection and an operational discovery command.
 - Fixture-based tests that do not depend on live employer career pages.
 
 ## Architecture
@@ -91,6 +92,13 @@ pnpm supabase:start
 pnpm supabase:reset
 ```
 
+Lint the schema and run the PostgreSQL persistence tests:
+
+```bash
+pnpm supabase:lint
+pnpm supabase:test
+```
+
 Run the web application:
 
 ```bash
@@ -121,6 +129,15 @@ Worker checks:
 ```
 
 Routine worker tests use synthetic fixtures and mocked HTTP responses. They do not call live employer sources.
+
+Run one manually verified source by its database UUID:
+
+```bash
+.venv/bin/launchpad-worker discover \
+  --source-id 30000000-0000-0000-0000-000000000001
+```
+
+The source UUID must identify an active row whose URL is the verified official ATS endpoint. The command does not accept a separate Greenhouse board token.
 
 ## Product constraints
 

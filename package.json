@@ -12,8 +12,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "pnpm --filter @launchpad/web lint",
+    "supabase:lint": "supabase db lint --local --level warning",
     "supabase:reset": "supabase db reset",
     "supabase:start": "supabase start",
+    "supabase:test": "supabase test db --local",
     "test": "pnpm --filter @launchpad/web test",
     "typecheck": "pnpm --filter @launchpad/web typecheck"
   },

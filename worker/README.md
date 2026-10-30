@@ -31,3 +31,14 @@ stats = runner.run(source_id=source_id, source=source)
 ```
 
 Apply all Supabase migrations before running discovery. The persistence RPC is intentionally executable only with the server-side service-role credential.
+
+## Operational discovery command
+
+After manually verifying and inserting an active `public.sources` row, run it by UUID:
+
+```bash
+.venv/bin/launchpad-worker discover \
+  --source-id 30000000-0000-0000-0000-000000000001
+```
+
+The command loads the source type and official URL from PostgreSQL, constructs the independent adapter, and records the successful, partial, or failed result. It does not accept a separate board token, which prevents jobs from being associated with the wrong configured company.
