@@ -21,3 +21,17 @@ def test_discover_command_rejects_invalid_source_id() -> None:
         build_parser().parse_args(["discover", "--source-id", "not-a-uuid"])
 
     assert raised.value.code == 2
+
+
+def test_match_command_accepts_only_a_user_uuid() -> None:
+    arguments = build_parser().parse_args(["match", "--user-id", SOURCE_ID])
+
+    assert arguments.command == "match"
+    assert arguments.user_id == UUID(SOURCE_ID)
+
+
+def test_match_command_rejects_invalid_user_id() -> None:
+    with pytest.raises(SystemExit) as raised:
+        build_parser().parse_args(["match", "--user-id", "not-a-uuid"])
+
+    assert raised.value.code == 2

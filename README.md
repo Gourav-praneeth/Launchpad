@@ -2,7 +2,7 @@
 
 Launchpad is a freshness-first job discovery application for CS and software engineering new graduates. It monitors a curated watchlist of employers, discovers new listings from official career sources, preserves honest freshness timestamps, and will deliver fast, duplicate-safe notifications based only on explicit user preferences.
 
-> Current status: Phase 3 is underway. The deterministic matching engine is implemented; preference persistence and match-result orchestration are next. The authenticated dashboard, scheduling, and notifications follow in later phases.
+> Current status: Phase 3 is complete. Deterministic preference matching and atomic, explainable result persistence are implemented. The authenticated freshness-first dashboard is next.
 
 ## Why Launchpad
 
@@ -29,6 +29,8 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - Database-backed source selection and an operational discovery command.
 - Deterministic matching from explicit preferences with transparent matched, review, and rejected outcomes.
 - New-grad career-level rules, senior-role exclusion, metadata filters, keyword rules, and explicit sponsorship handling.
+- Atomic match-result persistence with preference and job stale-write protection.
+- User-owned match results with read-only browser access enforced by Row Level Security.
 - Fixture-based tests that do not depend on live employer career pages.
 
 ## Architecture
@@ -141,6 +143,15 @@ Run one manually verified source by its database UUID:
 
 The source UUID must identify an active row whose URL is the verified official ATS endpoint. The command does not accept a separate Greenhouse board token.
 
+Evaluate every open job owned by one user against that user's stored preferences:
+
+```bash
+.venv/bin/launchpad-worker match \
+  --user-id 10000000-0000-0000-0000-000000000001
+```
+
+The user must have one `public.user_preferences` row. The worker stores one versioned, explainable result per open job. If preferences or job content change during the run, the batch fails safely and should be retried.
+
 ## Product constraints
 
 - No resume uploads, parsing, similarity scores, or candidate profiling.
@@ -156,7 +167,7 @@ The source UUID must identify an active row whose URL is the verified official A
 - [x] Phase 1 — Project, database, authentication, and quality foundation
 - [x] Phase 2A — Greenhouse source adapter and deterministic normalization
 - [x] Phase 2B — Atomic persistence, deduplication, events, and source health
-- [ ] Phase 3 — Explicit-preference matching and transparent match reasons (engine complete; persistence next)
+- [x] Phase 3 — Explicit-preference matching and transparent match reasons
 - [ ] Phase 4 — Freshness-first dashboard and job workflow states
 - [ ] Phase 5 — Scheduling, email notifications, retries, and source monitoring
 - [ ] Phase 6 — End-to-end MVP validation, deployment, and maintenance docs
