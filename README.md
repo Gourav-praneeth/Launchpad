@@ -2,7 +2,7 @@
 
 Launchpad is a freshness-first job discovery application for CS and software engineering new graduates. It monitors a curated watchlist of employers, discovers new listings from official career sources, preserves honest freshness timestamps, and will deliver fast, duplicate-safe notifications based only on explicit user preferences.
 
-> Current status: project foundation and Greenhouse discovery persistence are implemented through Phase 2B. Matching, the authenticated dashboard, scheduling, and notifications are planned next.
+> Current status: Phase 3 is underway. The deterministic matching engine is implemented; preference persistence and match-result orchestration are next. The authenticated dashboard, scheduling, and notifications follow in later phases.
 
 ## Why Launchpad
 
@@ -27,6 +27,8 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - Deduplication by source job ID with a canonical fallback key.
 - Immutable `first_seen_at`, stale-run protection, and reopening events.
 - Database-backed source selection and an operational discovery command.
+- Deterministic matching from explicit preferences with transparent matched, review, and rejected outcomes.
+- New-grad career-level rules, senior-role exclusion, metadata filters, keyword rules, and explicit sponsorship handling.
 - Fixture-based tests that do not depend on live employer career pages.
 
 ## Architecture
@@ -154,7 +156,7 @@ The source UUID must identify an active row whose URL is the verified official A
 - [x] Phase 1 — Project, database, authentication, and quality foundation
 - [x] Phase 2A — Greenhouse source adapter and deterministic normalization
 - [x] Phase 2B — Atomic persistence, deduplication, events, and source health
-- [ ] Phase 3 — Explicit-preference matching and transparent match reasons
+- [ ] Phase 3 — Explicit-preference matching and transparent match reasons (engine complete; persistence next)
 - [ ] Phase 4 — Freshness-first dashboard and job workflow states
 - [ ] Phase 5 — Scheduling, email notifications, retries, and source monitoring
 - [ ] Phase 6 — End-to-end MVP validation, deployment, and maintenance docs
