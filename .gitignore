@@ -1,0 +1,30 @@
+# JavaScript
+node_modules/
+.pnpm-store/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment and local services
+.env
+.env.*
+!.env.example
+supabase/.branches/
+supabase/.temp/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Generated design review artifacts
+.taste-skill/

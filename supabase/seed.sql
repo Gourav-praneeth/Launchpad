@@ -1,0 +1,2 @@
+-- Phase 1 deliberately seeds no companies or jobs. Development records should
+-- be owned by a real local Supabase Auth user rather than a fabricated UUID.

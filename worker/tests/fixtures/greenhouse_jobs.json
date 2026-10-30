@@ -1,0 +1,37 @@
+{
+  "jobs": [
+    {
+      "id": 127817,
+      "internal_job_id": 144381,
+      "title": "  Software Engineer, New Grad  ",
+      "updated_at": "2026-10-29T16:45:12-07:00",
+      "location": {
+        "name": " San Francisco, CA "
+      },
+      "absolute_url": "https://careers.example.test/jobs?gh_jid=127817&utm_source=fixture#apply",
+      "language": "en",
+      "content": "&amp;lt;p&amp;gt;Build dependable systems for new graduates.&amp;lt;/p&amp;gt;",
+      "departments": [
+        { "id": 12, "name": "Engineering" },
+        { "id": 13, "name": "Engineering" }
+      ],
+      "offices": [
+        { "id": 21, "name": "West Coast" },
+        { "id": 22, "name": "San Francisco" }
+      ],
+      "metadata": null
+    },
+    {
+      "id": 127818,
+      "internal_job_id": 144382,
+      "title": "Backend Engineer",
+      "updated_at": "2026-10-30T08:05:00Z",
+      "location": { "name": "Remote — United States" },
+      "absolute_url": "https://boards.greenhouse.io/example/jobs/127818",
+      "language": "en",
+      "departments": [{ "id": 12, "name": "Engineering" }],
+      "offices": []
+    }
+  ],
+  "meta": { "total": 2 }
+}

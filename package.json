@@ -1,0 +1,24 @@
+{
+  "name": "launchpad",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @launchpad/web build",
+    "dev": "pnpm --filter @launchpad/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "pnpm --filter @launchpad/web lint",
+    "supabase:reset": "supabase db reset",
+    "supabase:start": "supabase start",
+    "test": "pnpm --filter @launchpad/web test",
+    "typecheck": "pnpm --filter @launchpad/web typecheck"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "supabase": "2.122.0"
+  }
+}
