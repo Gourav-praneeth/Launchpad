@@ -2,7 +2,7 @@
 
 Launchpad is a freshness-first job discovery application for CS and software engineering new graduates. It monitors a curated watchlist of employers, discovers new listings from official career sources, preserves honest freshness timestamps, and will deliver fast, duplicate-safe notifications based only on explicit user preferences.
 
-> Current status: Phase 4A is implemented. Authenticated users can view a freshness-first job feed with transparent match outcomes and distinct discovery, verification, and employer-posted timestamps. Job workflow actions and watchlist management are next.
+> Current status: Phase 4B is implemented. Authenticated users can discover fresh jobs, save promising roles, dismiss irrelevant ones, and record applications without weakening timestamp or ownership guarantees. Watchlist and preference management are next.
 
 ## Why Launchpad
 
@@ -36,6 +36,8 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - Separate display of discovery, verification, and employer-provided posting times.
 - Matched and review feed views that exclude deterministically rejected jobs.
 - Automatic creation of safe new-grad preference defaults for new accounts.
+- Saved and applied feed views with per-job Save, Dismiss, and Mark applied actions.
+- Atomic workflow timestamps and transition rules enforced in PostgreSQL.
 - Fixture-based tests that do not depend on live employer career pages.
 
 ## Architecture
@@ -176,7 +178,7 @@ The user must have one `public.user_preferences` row. The worker stores one vers
 - [x] Phase 3 — Explicit-preference matching and transparent match reasons
 - [ ] Phase 4 — Freshness-first dashboard and job workflow states
   - [x] Phase 4A — Authentication and freshness-first read-only job feed
-  - [ ] Phase 4B — Saved, dismissed, and applied workflow actions
+  - [x] Phase 4B — Saved, dismissed, and applied workflow actions
   - [ ] Phase 4C — Company watchlist and preference management
 - [ ] Phase 5 — Scheduling, email notifications, retries, and source monitoring
 - [ ] Phase 6 — End-to-end MVP validation, deployment, and maintenance docs

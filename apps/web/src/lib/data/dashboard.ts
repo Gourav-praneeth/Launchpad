@@ -2,6 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
+import type { WorkflowStatus } from "@/lib/jobs/workflow";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type MatchReasonDTO = {
@@ -21,9 +22,13 @@ export type JobFeedItemDTO = {
   employerPostedAt: string | null;
   firstSeenAt: string;
   lastVerifiedAt: string | null;
+  listingStatus: "open" | "closed" | "uncertain";
   matchStatus: "matched" | "review" | "rejected" | null;
   matchReasons: MatchReasonDTO[];
-  workflowStatus: string | null;
+  workflowStatus:
+    WorkflowStatus | "interviewing" | "rejected" | "closed" | null;
+  savedAt: string | null;
+  appliedAt: string | null;
 };
 
 export type DashboardData = {
@@ -73,7 +78,23 @@ export function mapJobRow(value: unknown): JobFeedItemDTO | null {
   const firstSeenAt = stringOrNull(value.first_seen_at);
   const company = firstRecord(value.company);
   const companyName = company ? stringOrNull(company.name) : null;
-  if (!id || !title || !applyUrl || !firstSeenAt || !companyName) return null;
+  const rawListingStatus = stringOrNull(value.status);
+  const listingStatus =
+    rawListingStatus === "open" ||
+    rawListingStatus === "closed" ||
+    rawListingStatus === "uncertain"
+      ? rawListingStatus
+      : null;
+  if (
+    !id ||
+    !title ||
+    !applyUrl ||
+    !firstSeenAt ||
+    !companyName ||
+    !listingStatus
+  ) {
+    return null;
+  }
 
   const match = firstRecord(value.matches);
   const interaction = firstRecord(value.interactions);
@@ -83,6 +104,19 @@ export function mapJobRow(value: unknown): JobFeedItemDTO | null {
     rawMatchStatus === "review" ||
     rawMatchStatus === "rejected"
       ? rawMatchStatus
+      : null;
+  const rawWorkflowStatus = interaction
+    ? stringOrNull(interaction.application_status)
+    : null;
+  const workflowStatus =
+    rawWorkflowStatus === "new" ||
+    rawWorkflowStatus === "saved" ||
+    rawWorkflowStatus === "applied" ||
+    rawWorkflowStatus === "interviewing" ||
+    rawWorkflowStatus === "rejected" ||
+    rawWorkflowStatus === "closed" ||
+    rawWorkflowStatus === "not_interested"
+      ? rawWorkflowStatus
       : null;
 
   return {
@@ -96,11 +130,12 @@ export function mapJobRow(value: unknown): JobFeedItemDTO | null {
     employerPostedAt: stringOrNull(value.employer_posted_at),
     firstSeenAt,
     lastVerifiedAt: stringOrNull(value.last_verified_at),
+    listingStatus,
     matchStatus,
     matchReasons: parseReasons(match?.match_reasons),
-    workflowStatus: interaction
-      ? stringOrNull(interaction.application_status)
-      : null,
+    workflowStatus,
+    savedAt: interaction ? stringOrNull(interaction.saved_at) : null,
+    appliedAt: interaction ? stringOrNull(interaction.applied_at) : null,
   };
 }
 
@@ -115,30 +150,35 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
   const email = stringOrNull(claims?.email);
 
-  const [jobsResult, companiesResult, sourceResult] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select(
-        `id,title,location,workplace_type,employment_type,apply_url,
-         employer_posted_at,first_seen_at,last_verified_at,
-         company:companies!jobs_company_id_fkey(name),
-         matches:job_matches!job_matches_job_id_fkey(status,match_reasons),
-         interactions:user_jobs!user_jobs_job_id_fkey(application_status)`,
-      )
-      .eq("status", "open")
-      .order("first_seen_at", { ascending: false })
-      .limit(201),
-    supabase
-      .from("companies")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true),
-    supabase
-      .from("sources")
-      .select("last_attempt_at")
-      .not("last_attempt_at", "is", null)
-      .order("last_attempt_at", { ascending: false })
-      .limit(1),
-  ]);
+  const jobSelection = `id,title,location,workplace_type,employment_type,apply_url,
+    employer_posted_at,first_seen_at,last_verified_at,status,
+    company:companies!jobs_company_id_fkey(name),
+    matches:job_matches!job_matches_job_id_fkey(status,match_reasons),
+    interactions:user_jobs!user_jobs_job_id_fkey(application_status,saved_at,applied_at)`;
+  const [jobsResult, companiesResult, sourceResult, workflowResult] =
+    await Promise.all([
+      supabase
+        .from("jobs")
+        .select(jobSelection)
+        .eq("status", "open")
+        .order("first_seen_at", { ascending: false })
+        .limit(201),
+      supabase
+        .from("companies")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true),
+      supabase
+        .from("sources")
+        .select("last_attempt_at")
+        .not("last_attempt_at", "is", null)
+        .order("last_attempt_at", { ascending: false })
+        .limit(1),
+      supabase
+        .from("user_jobs")
+        .select("job_id")
+        .in("application_status", ["saved", "applied"])
+        .limit(501),
+    ]);
 
   if (jobsResult.error) {
     return {
@@ -151,18 +191,46 @@ export async function getDashboardData(): Promise<DashboardData> {
     };
   }
 
-  const mappedJobs = (jobsResult.data ?? []).flatMap((row) => {
+  const freshRows = (jobsResult.data ?? []).slice(0, 200);
+  const freshIds = new Set(
+    freshRows.flatMap((row) => (typeof row.id === "string" ? [row.id] : [])),
+  );
+  const workflowJobIds = (workflowResult.data ?? [])
+    .slice(0, 500)
+    .flatMap((row) =>
+      typeof row.job_id === "string" && !freshIds.has(row.job_id)
+        ? [row.job_id]
+        : [],
+    );
+  const workflowJobsResult =
+    workflowJobIds.length > 0
+      ? await supabase
+          .from("jobs")
+          .select(jobSelection)
+          .in("id", workflowJobIds)
+      : { data: [], error: null };
+  const mappedJobs = [
+    ...freshRows,
+    ...(workflowJobsResult.error ? [] : (workflowJobsResult.data ?? [])),
+  ].flatMap((row) => {
     const job = mapJobRow(row);
     return job ? [job] : [];
   });
+  mappedJobs.sort(
+    (left, right) =>
+      new Date(right.firstSeenAt).getTime() -
+      new Date(left.firstSeenAt).getTime(),
+  );
   const source = firstRecord(sourceResult.data);
 
   return {
     email,
-    jobs: mappedJobs.slice(0, 200),
+    jobs: mappedJobs,
     activeCompanies: companiesResult.error ? null : companiesResult.count,
     lastSourceCheckAt: source ? stringOrNull(source.last_attempt_at) : null,
     loadError: null,
-    isTruncated: mappedJobs.length > 200,
+    isTruncated:
+      (jobsResult.data?.length ?? 0) > 200 ||
+      (workflowResult.data?.length ?? 0) > 500,
   };
 }

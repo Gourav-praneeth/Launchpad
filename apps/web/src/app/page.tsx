@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LocalTime } from "@/app/local-time";
+import { JobWorkflowControls } from "@/app/job-workflow-controls";
 import { signOut } from "@/lib/auth/actions";
 import {
   getDashboardData,
@@ -8,7 +9,7 @@ import {
   type JobFeedItemDTO,
 } from "@/lib/data/dashboard";
 
-type FeedView = "newest" | "matched" | "review";
+type FeedView = "newest" | "matched" | "review" | "saved" | "applied";
 
 type DashboardViewProps = {
   data: DashboardData;
@@ -16,7 +17,14 @@ type DashboardViewProps = {
 };
 
 const validView = (value: string | undefined): FeedView => {
-  if (value === "matched" || value === "review") return value;
+  if (
+    value === "matched" ||
+    value === "review" ||
+    value === "saved" ||
+    value === "applied"
+  ) {
+    return value;
+  }
   return "newest";
 };
 
@@ -25,9 +33,6 @@ const withinLastDay = (value: string): boolean =>
 
 const displayValue = (value: number | null): string =>
   value === null ? "—" : new Intl.NumberFormat().format(value);
-
-const sentenceCase = (value: string): string =>
-  value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 
 const jobMetadata = (job: JobFeedItemDTO): string =>
   [job.location, job.workplaceType, job.employmentType]
@@ -77,22 +82,66 @@ function FreshnessTrail({ job }: { job: JobFeedItemDTO }) {
   );
 }
 
+function WorkflowState({ job }: { job: JobFeedItemDTO }) {
+  if (job.workflowStatus === "saved") {
+    return (
+      <p className="workflow-state">
+        Saved
+        {job.savedAt ? (
+          <>
+            {" "}
+            <LocalTime value={job.savedAt} relative />
+          </>
+        ) : null}
+        {job.listingStatus !== "open" ? " · Listing closed" : null}
+      </p>
+    );
+  }
+  if (job.workflowStatus === "applied") {
+    return (
+      <p className="workflow-state applied-state">
+        Applied
+        {job.appliedAt ? (
+          <>
+            {" "}
+            <LocalTime value={job.appliedAt} relative />
+          </>
+        ) : null}
+        {job.listingStatus !== "open" ? " · Listing closed" : null}
+      </p>
+    );
+  }
+  return null;
+}
+
 export function DashboardView({ data, view = "newest" }: DashboardViewProps) {
   const eligibleJobs = data.jobs.filter(
-    (job) => job.matchStatus !== "rejected",
+    (job) =>
+      job.matchStatus !== "rejected" && job.workflowStatus !== "not_interested",
   );
-  const matchedCount = eligibleJobs.filter(
+  const openJobs = eligibleJobs.filter((job) => job.listingStatus === "open");
+  const matchedCount = openJobs.filter(
     (job) => job.matchStatus === "matched",
   ).length;
-  const reviewCount = eligibleJobs.filter(
+  const reviewCount = openJobs.filter(
     (job) => job.matchStatus === "review",
   ).length;
-  const newCount = eligibleJobs.filter((job) =>
+  const savedCount = eligibleJobs.filter(
+    (job) => job.workflowStatus === "saved",
+  ).length;
+  const appliedCount = eligibleJobs.filter(
+    (job) => job.workflowStatus === "applied",
+  ).length;
+  const newCount = openJobs.filter((job) =>
     withinLastDay(job.firstSeenAt),
   ).length;
-  const filteredJobs = eligibleJobs.filter((job) => {
+  const filteredJobs = (
+    view === "saved" || view === "applied" ? eligibleJobs : openJobs
+  ).filter((job) => {
     if (view === "matched") return job.matchStatus === "matched";
     if (view === "review") return job.matchStatus === "review";
+    if (view === "saved") return job.workflowStatus === "saved";
+    if (view === "applied") return job.workflowStatus === "applied";
     return true;
   });
   const finding =
@@ -201,6 +250,20 @@ export function DashboardView({ data, view = "newest" }: DashboardViewProps) {
               >
                 Review {reviewCount}
               </Link>
+              <Link
+                className={view === "saved" ? "active" : undefined}
+                href="/?view=saved"
+                aria-current={view === "saved" ? "page" : undefined}
+              >
+                Saved {savedCount}
+              </Link>
+              <Link
+                className={view === "applied" ? "active" : undefined}
+                href="/?view=applied"
+                aria-current={view === "applied" ? "page" : undefined}
+              >
+                Applied {appliedCount}
+              </Link>
             </nav>
           </div>
 
@@ -233,29 +296,30 @@ export function DashboardView({ data, view = "newest" }: DashboardViewProps) {
                     </div>
                     <h3>{job.title}</h3>
                     <p>{jobMetadata(job)}</p>
-                    {job.workflowStatus && job.workflowStatus !== "new" ? (
-                      <p className="workflow-state">
-                        Your status: {sentenceCase(job.workflowStatus)}
-                      </p>
-                    ) : null}
+                    <WorkflowState job={job} />
                   </div>
                   <FreshnessTrail job={job} />
-                  <a
-                    className="apply-link"
-                    href={job.applyUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Apply on company site
-                  </a>
+                  <div className="job-actions">
+                    <a
+                      className="apply-link"
+                      href={job.applyUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Apply on company site
+                    </a>
+                    <JobWorkflowControls
+                      jobId={job.id}
+                      status={job.workflowStatus}
+                    />
+                  </div>
                 </article>
               ))}
             </div>
           )}
           {data.isTruncated ? (
             <p className="truncation-note">
-              Showing the 200 freshest open jobs. Narrower filters are coming in
-              the next dashboard increment.
+              Showing the 200 freshest open jobs plus saved and applied records.
             </p>
           ) : null}
         </section>

@@ -5,6 +5,14 @@ import type { DashboardData, JobFeedItemDTO } from "@/lib/data/dashboard";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/actions", () => ({ signOut: vi.fn() }));
+vi.mock("@/lib/jobs/actions", () => ({
+  initialWorkflowActionState: {
+    error: null,
+    updatedJobId: null,
+    status: null,
+  },
+  updateJobWorkflow: vi.fn(),
+}));
 vi.mock("@/lib/data/dashboard", async () => {
   const actual = await vi.importActual<typeof import("@/lib/data/dashboard")>(
     "@/lib/data/dashboard",
@@ -48,9 +56,12 @@ describe("freshness-first dashboard", () => {
           employerPostedAt: null,
           firstSeenAt: now.toISOString(),
           lastVerifiedAt: now.toISOString(),
+          listingStatus: "open",
           matchStatus: "matched",
           matchReasons: [],
           workflowStatus: "new",
+          savedAt: null,
+          appliedAt: null,
         },
       ],
     };
@@ -92,8 +103,11 @@ describe("freshness-first dashboard", () => {
       employerPostedAt: null,
       firstSeenAt: now,
       lastVerifiedAt: now,
+      listingStatus: "open",
       matchReasons: [],
       workflowStatus: null,
+      savedAt: null,
+      appliedAt: null,
     };
     const data: DashboardData = {
       ...emptyDashboard(),
@@ -115,5 +129,93 @@ describe("freshness-first dashboard", () => {
       screen.queryByText("Senior Software Engineer"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Review metadata")).toBeInTheDocument();
+  });
+
+  it("filters saved jobs and excludes dismissed jobs", () => {
+    const now = new Date().toISOString();
+    const baseJob: JobFeedItemDTO = {
+      id: "job-1",
+      title: "Software Engineer, New Grad",
+      company: "Launchpad Fixture",
+      location: "Remote",
+      workplaceType: "remote",
+      employmentType: "full-time",
+      applyUrl: "https://careers.example.test/jobs/1",
+      employerPostedAt: null,
+      firstSeenAt: now,
+      lastVerifiedAt: now,
+      listingStatus: "open",
+      matchStatus: "matched",
+      matchReasons: [],
+      workflowStatus: "saved",
+      savedAt: now,
+      appliedAt: null,
+    };
+    const data: DashboardData = {
+      ...emptyDashboard(),
+      jobs: [
+        baseJob,
+        {
+          ...baseJob,
+          id: "job-2",
+          title: "Dismissed Software Engineer",
+          workflowStatus: "not_interested",
+          savedAt: null,
+        },
+      ],
+    };
+
+    render(<DashboardView data={data} view="saved" />);
+
+    expect(screen.getByRole("link", { name: "Saved 1" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByText("Software Engineer, New Grad")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Saved" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.queryByText("Dismissed Software Engineer"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows applied jobs as completed workflow records", () => {
+    const now = new Date().toISOString();
+    const data: DashboardData = {
+      ...emptyDashboard(),
+      jobs: [
+        {
+          id: "job-3",
+          title: "Associate Software Engineer",
+          company: "Launchpad Fixture",
+          location: "New York, NY",
+          workplaceType: "hybrid",
+          employmentType: "full-time",
+          applyUrl: "https://careers.example.test/jobs/3",
+          employerPostedAt: null,
+          firstSeenAt: now,
+          lastVerifiedAt: now,
+          listingStatus: "closed",
+          matchStatus: "matched",
+          matchReasons: [],
+          workflowStatus: "applied",
+          savedAt: null,
+          appliedAt: now,
+        },
+      ],
+    };
+
+    render(<DashboardView data={data} view="applied" />);
+
+    expect(screen.getByRole("link", { name: "Applied 1" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByText("Application recorded")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Dismiss" }),
+    ).not.toBeInTheDocument();
   });
 });

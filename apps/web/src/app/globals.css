@@ -315,7 +315,10 @@ h1 {
 
 .job-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1.3fr) minmax(410px, 1fr) 150px;
+  grid-template-columns: minmax(250px, 1.15fr) minmax(390px, 1fr) minmax(
+      190px,
+      auto
+    );
   gap: 28px;
   align-items: center;
   min-height: 126px;
@@ -359,8 +362,13 @@ h1 {
 
 .job-summary .workflow-state {
   margin-top: 5px;
-  color: var(--text);
+  color: var(--accent);
   font-size: 12px;
+  font-weight: 500;
+}
+
+.job-summary .applied-state {
+  color: var(--text);
 }
 
 .match-label {
@@ -419,11 +427,75 @@ h1 {
 }
 
 .apply-link {
-  justify-self: end;
   color: var(--text);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
+}
+
+.job-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.workflow-controls {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.workflow-controls > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.workflow-controls button {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--control);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workflow-controls button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: #155149;
+}
+
+.workflow-controls button:hover:not(:disabled) {
+  border-color: var(--text);
+}
+
+.workflow-controls button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.workflow-controls .dismiss-action {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.workflow-error {
+  max-width: 210px;
+  margin: 0;
+  color: var(--negative);
+  font-size: 11px;
+  text-align: right;
+}
+
+.workflow-complete {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .apply-link:hover {
@@ -627,9 +699,21 @@ h1 {
     grid-template-columns: minmax(240px, 1fr) minmax(370px, 1.3fr);
   }
 
-  .apply-link {
+  .job-actions {
     grid-column: 1 / -1;
-    justify-self: start;
+    justify-items: start;
+  }
+
+  .workflow-controls {
+    justify-items: start;
+  }
+
+  .workflow-controls > div {
+    justify-content: flex-start;
+  }
+
+  .workflow-error {
+    text-align: left;
   }
 }
 
@@ -682,6 +766,11 @@ h1 {
   .apply-link {
     min-height: 44px;
     align-content: center;
+  }
+
+  .workflow-controls button {
+    min-height: 44px;
+    padding-inline: 12px;
   }
 
   .login-shell {
