@@ -3,11 +3,11 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
+import { updateJobWorkflow } from "@/lib/jobs/actions";
 import {
   initialWorkflowActionState,
-  updateJobWorkflow,
-} from "@/lib/jobs/actions";
-import type { WorkflowStatus } from "@/lib/jobs/workflow";
+  type WorkflowStatus,
+} from "@/lib/jobs/workflow";
 
 type WorkflowButtonProps = {
   actionStatus: WorkflowStatus;

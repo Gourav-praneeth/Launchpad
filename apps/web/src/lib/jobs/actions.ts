@@ -5,22 +5,11 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import {
+  initialWorkflowActionState,
   parseWorkflowMutation,
-  type WorkflowStatus,
+  type WorkflowActionState,
 } from "@/lib/jobs/workflow";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-export type WorkflowActionState = {
-  error: string | null;
-  updatedJobId: string | null;
-  status: WorkflowStatus | null;
-};
-
-export const initialWorkflowActionState: WorkflowActionState = {
-  error: null,
-  updatedJobId: null,
-  status: null,
-};
 
 export async function updateJobWorkflow(
   _previousState: WorkflowActionState,

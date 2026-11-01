@@ -6,11 +6,6 @@ import type { DashboardData, JobFeedItemDTO } from "@/lib/data/dashboard";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/actions", () => ({ signOut: vi.fn() }));
 vi.mock("@/lib/jobs/actions", () => ({
-  initialWorkflowActionState: {
-    error: null,
-    updatedJobId: null,
-    status: null,
-  },
   updateJobWorkflow: vi.fn(),
 }));
 vi.mock("@/lib/data/dashboard", async () => {

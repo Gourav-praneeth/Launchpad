@@ -12,6 +12,18 @@ export type WorkflowMutation = {
   status: WorkflowStatus;
 };
 
+export type WorkflowActionState = {
+  error: string | null;
+  updatedJobId: string | null;
+  status: WorkflowStatus | null;
+};
+
+export const initialWorkflowActionState: WorkflowActionState = {
+  error: null,
+  updatedJobId: null,
+  status: null,
+};
+
 export type WorkflowMutationResult =
   { ok: true; value: WorkflowMutation } | { ok: false; error: string };
 
