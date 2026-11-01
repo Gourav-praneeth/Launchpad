@@ -7,7 +7,14 @@ from uuid import UUID
 
 import structlog
 
-from launchpad_worker.config import get_settings
+from launchpad_worker.automation import (
+    AutomationPersistenceError,
+    AutomationRepository,
+    AutomationRunner,
+    ConfiguredMatchingOperation,
+    ConfiguredSourceOperation,
+)
+from launchpad_worker.config import Settings, get_settings
 from launchpad_worker.database import create_database_client
 from launchpad_worker.discovery import DiscoveryRunner
 from launchpad_worker.logging import configure_logging
@@ -16,7 +23,17 @@ from launchpad_worker.matching_persistence import (
     MatchingRepository,
     MatchingRunner,
 )
-from launchpad_worker.persistence import DiscoveryPersistenceError, DiscoveryRepository
+from launchpad_worker.notifications import (
+    NotificationDispatcher,
+    NotificationPersistenceError,
+    NotificationRepository,
+    ResendEmailProvider,
+)
+from launchpad_worker.persistence import (
+    DatabaseClient,
+    DiscoveryPersistenceError,
+    DiscoveryRepository,
+)
 from launchpad_worker.source_registry import (
     SourceRegistry,
     SourceRegistryError,
@@ -53,7 +70,44 @@ def build_parser() -> argparse.ArgumentParser:
         type=UUID,
         help="Supabase Auth user UUID whose jobs should be evaluated.",
     )
+    cycle = subcommands.add_parser(
+        "cycle",
+        help="Run every due source, refresh matching, queue alerts, and deliver due email.",
+    )
+    cycle.add_argument(
+        "--skip-email",
+        action="store_true",
+        help="Queue notifications without claiming or sending email (local verification only).",
+    )
+    cycle.add_argument(
+        "--max-deliveries",
+        type=int,
+        default=100,
+        help="Maximum email digests to process in this cycle (1-1000).",
+    )
+    deliver = subcommands.add_parser(
+        "deliver",
+        help="Deliver due notification digests without running discovery or matching.",
+    )
+    deliver.add_argument(
+        "--max-deliveries",
+        type=int,
+        default=100,
+        help="Maximum email digests to process (1-1000).",
+    )
     return parser
+
+
+def _notification_dispatcher(settings: Settings, client: DatabaseClient) -> NotificationDispatcher:
+    """Construct email delivery only after the command explicitly needs it."""
+    api_key, from_address, app_base_url = settings.require_email_delivery()
+    return NotificationDispatcher(
+        NotificationRepository(client),
+        ResendEmailProvider(api_key),
+        from_address=from_address,
+        app_base_url=app_base_url,
+        maximum_attempts=settings.notification_max_attempts,
+    )
 
 
 def run_cli(argv: Sequence[str] | None = None) -> int:
@@ -62,6 +116,72 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     settings = get_settings()
     configure_logging(settings)
     logger = structlog.get_logger("launchpad.worker")
+    if arguments.command == "deliver":
+        try:
+            client = create_database_client(settings)
+            delivery_stats = _notification_dispatcher(settings, client).drain(
+                maximum_deliveries=arguments.max_deliveries
+            )
+        except (NotificationPersistenceError, ValueError) as error:
+            logger.error(
+                "notification_delivery_failed",
+                error_type=type(error).__name__,
+                error_summary=str(error),
+            )
+            return 1
+        logger.info(
+            "notification_delivery_completed",
+            claimed=delivery_stats.claimed,
+            sent=delivery_stats.sent,
+            retry_scheduled=delivery_stats.retry_scheduled,
+            permanently_failed=delivery_stats.permanently_failed,
+        )
+        return 1 if delivery_stats.retry_scheduled or delivery_stats.permanently_failed else 0
+
+    if arguments.command == "cycle":
+        try:
+            client = create_database_client(settings)
+            dispatcher = (
+                None if arguments.skip_email else _notification_dispatcher(settings, client)
+            )
+            cycle_stats = AutomationRunner(
+                AutomationRepository(client),
+                ConfiguredSourceOperation(client),
+                ConfiguredMatchingOperation(client),
+                NotificationRepository(client),
+                dispatcher=dispatcher,
+            ).run(maximum_deliveries=arguments.max_deliveries)
+        except (
+            AutomationPersistenceError,
+            NotificationPersistenceError,
+            ValueError,
+        ) as error:
+            logger.error(
+                "automation_cycle_failed",
+                error_type=type(error).__name__,
+                error_summary=str(error),
+            )
+            return 1
+        logger.info(
+            "automation_cycle_completed",
+            sources_attempted=cycle_stats.sources_attempted,
+            sources_succeeded=cycle_stats.sources_succeeded,
+            sources_failed=cycle_stats.sources_failed,
+            users_attempted=cycle_stats.users_attempted,
+            users_succeeded=cycle_stats.users_succeeded,
+            users_failed=cycle_stats.users_failed,
+            notifications_queued=cycle_stats.notifications_queued,
+            delivery_claimed=cycle_stats.delivery.claimed if cycle_stats.delivery else 0,
+            delivery_sent=cycle_stats.delivery.sent if cycle_stats.delivery else 0,
+            delivery_retry_scheduled=(
+                cycle_stats.delivery.retry_scheduled if cycle_stats.delivery else 0
+            ),
+            delivery_permanently_failed=(
+                cycle_stats.delivery.permanently_failed if cycle_stats.delivery else 0
+            ),
+        )
+        return 1 if cycle_stats.has_failures else 0
+
     if arguments.command == "match":
         user_id = str(arguments.user_id)
         try:

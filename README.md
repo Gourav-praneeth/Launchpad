@@ -2,7 +2,7 @@
 
 Launchpad is a freshness-first job discovery application for CS and software engineering new graduates. It monitors a curated watchlist of employers, discovers new listings from official career sources, preserves honest freshness timestamps, and will deliver fast, duplicate-safe notifications based only on explicit user preferences.
 
-> Current status: Phase 4 is implemented. Authenticated users can manage official Greenhouse sources and explicit job preferences, discover fresh jobs, save promising roles, dismiss irrelevant ones, and record applications without weakening timestamp or ownership guarantees. Scheduling and notifications are next.
+> Current status: Phase 5 is implemented. A scheduled, fault-isolated worker can discover due sources, refresh deterministic matches, build frequency-aware email digests, and deliver them with database and provider idempotency. Deployment credentials and curated real company sources are required before alerts become operational.
 
 ## Why Launchpad
 
@@ -42,6 +42,13 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - Source health, last-attempt, last-success, and monitoring cadence visibility.
 - Explicit title, career-level, employment, location, workplace, keyword, sponsorship, senior-role, and alert-frequency preferences.
 - Preference updates invalidate stale match results so the worker can evaluate a fresh snapshot.
+- Due-source selection with per-source cadence and exponential failure backoff.
+- Fault-isolated automation that continues after individual source or user failures.
+- Database-idempotent notification queueing for newly discovered matching jobs.
+- Immediate, hourly, and daily email digest batching with immutable retry payloads.
+- Resend delivery with provider idempotency keys, leases, bounded retries, and terminal failure state.
+- GitHub Actions schedule running four times per hour, plus manual dispatch.
+- Company source health with distinct last-attempt, last-success, failure, and retry timing.
 - Fixture-based tests that do not depend on live employer career pages.
 
 ## Architecture
@@ -164,6 +171,35 @@ Evaluate every open job owned by one user against that user's stored preferences
 
 The user must have one `public.user_preferences` row. The worker stores one versioned, explainable result per open job. If preferences or job content change during the run, the batch fails safely and should be retried.
 
+Run a complete local cycle without claiming or sending email:
+
+```bash
+.venv/bin/launchpad-worker cycle --skip-email
+```
+
+This runs every due active source, refreshes matching for active watchlist owners, and queues missing alerts. To deliver due email, configure the Resend variables from `.env.example`, then run:
+
+```bash
+.venv/bin/launchpad-worker deliver
+```
+
+## Scheduled automation setup
+
+The workflow in `.github/workflows/discover.yml` runs at minutes 7, 22, 37, and 52 of every hour. GitHub notes that scheduled workflows can be delayed during high load, so Launchpad records actual source attempt and notification delivery times rather than assuming the cron time.
+
+Configure these GitHub Actions secrets:
+
+- `LAUNCHPAD_SUPABASE_URL`
+- `LAUNCHPAD_SUPABASE_SERVICE_ROLE_KEY`
+- `LAUNCHPAD_RESEND_API_KEY`
+
+Configure these GitHub Actions variables:
+
+- `LAUNCHPAD_EMAIL_FROM` — a sender verified in Resend, such as `Launchpad <alerts@example.com>`.
+- `LAUNCHPAD_APP_BASE_URL` — the deployed dashboard URL.
+
+The service-role and Resend keys must remain server-side. Resend requests use the immutable database delivery key as the `Idempotency-Key`, while PostgreSQL independently prevents duplicate queue rows and delivery batches. See [docs/notification-operations.md](docs/notification-operations.md) for retry and operational behavior.
+
 ## Product constraints
 
 - No resume uploads, parsing, similarity scores, or candidate profiling.
@@ -184,7 +220,7 @@ The user must have one `public.user_preferences` row. The worker stores one vers
   - [x] Phase 4A — Authentication and freshness-first read-only job feed
   - [x] Phase 4B — Saved, dismissed, and applied workflow actions
   - [x] Phase 4C — Company watchlist and preference management
-- [ ] Phase 5 — Scheduling, email notifications, retries, and source monitoring
+- [x] Phase 5 — Scheduling, email notifications, retries, and source monitoring
 - [ ] Phase 6 — End-to-end MVP validation, deployment, and maintenance docs
 
 See [docs/plan.md](docs/plan.md) for the complete product and technical plan. Meaningful architecture decisions are recorded in [docs/decisions](docs/decisions).

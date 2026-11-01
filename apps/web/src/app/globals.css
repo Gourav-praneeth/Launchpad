@@ -890,6 +890,21 @@ h1 {
   color: var(--muted);
 }
 
+.status-mark.neutral {
+  background: var(--active);
+  color: var(--text);
+}
+
+.status-mark.warning {
+  background: #fff7df;
+  color: #79520d;
+}
+
+.status-mark.failed {
+  background: #fff0ef;
+  color: #831c1e;
+}
+
 .source-detail {
   display: grid;
   gap: 4px;
@@ -903,6 +918,12 @@ h1 {
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.source-alert {
+  margin: 2px 0 0;
+  color: var(--negative);
+  font-size: 11px;
 }
 
 .source-health {

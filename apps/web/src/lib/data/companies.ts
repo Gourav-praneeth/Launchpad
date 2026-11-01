@@ -11,6 +11,8 @@ export type CompanySourceDTO = {
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
   lastError: string | null;
+  consecutiveFailures: number;
+  backoffUntil: string | null;
 };
 
 export type WatchlistCompanyDTO = {
@@ -59,6 +61,11 @@ export function mapCompanyRow(value: unknown): WatchlistCompanyDTO | null {
             lastAttemptAt: stringValue(source.last_attempt_at),
             lastSuccessAt: stringValue(source.last_success_at),
             lastError: stringValue(source.last_error),
+            consecutiveFailures:
+              typeof source.consecutive_failures === "number"
+                ? source.consecutive_failures
+                : 0,
+            backoffUntil: stringValue(source.backoff_until),
           },
         ];
       })
@@ -76,7 +83,7 @@ export async function getCompaniesData(): Promise<CompaniesData> {
   const { data, error } = await supabase
     .from("companies")
     .select(
-      "id,name,careers_url,is_active,sources(id,source_url,check_interval_minutes,last_attempt_at,last_success_at,last_error)",
+      "id,name,careers_url,is_active,sources(id,source_url,check_interval_minutes,last_attempt_at,last_success_at,last_error,consecutive_failures,backoff_until)",
     )
     .order("name");
   return {

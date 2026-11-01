@@ -1,0 +1,37 @@
+name: Scheduled discovery and alerts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launchpad-scheduled-discovery
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: worker/pyproject.toml
+      - run: python -m pip install -e ./worker
+      - name: Discover, match, and deliver alerts
+        run: launchpad-worker cycle --max-deliveries 100
+        env:
+          LAUNCHPAD_SUPABASE_URL: ${{ secrets.LAUNCHPAD_SUPABASE_URL }}
+          LAUNCHPAD_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.LAUNCHPAD_SUPABASE_SERVICE_ROLE_KEY }}
+          LAUNCHPAD_RESEND_API_KEY: ${{ secrets.LAUNCHPAD_RESEND_API_KEY }}
+          LAUNCHPAD_EMAIL_FROM: ${{ vars.LAUNCHPAD_EMAIL_FROM }}
+          LAUNCHPAD_APP_BASE_URL: ${{ vars.LAUNCHPAD_APP_BASE_URL }}
+          LAUNCHPAD_NOTIFICATION_MAX_ATTEMPTS: "5"
+          LAUNCHPAD_LOG_LEVEL: INFO
+          LAUNCHPAD_LOG_FORMAT: json

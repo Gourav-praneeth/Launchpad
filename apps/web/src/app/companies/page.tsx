@@ -1,7 +1,23 @@
 import { AppShell } from "@/app/app-shell";
 import { LocalTime } from "@/app/local-time";
 import { AddCompanyForm, MonitoringForm } from "@/app/companies/company-forms";
-import { getCompaniesData } from "@/lib/data/companies";
+import { getCompaniesData, type CompanySourceDTO } from "@/lib/data/companies";
+
+const sourceState = (
+  companyActive: boolean,
+  source: CompanySourceDTO | undefined,
+) => {
+  if (!companyActive) return { label: "Paused", className: "paused" };
+  if (!source?.lastAttemptAt)
+    return { label: "Awaiting first check", className: "neutral" };
+  if (source.consecutiveFailures > 0)
+    return {
+      label:
+        source.consecutiveFailures > 2 ? "Needs attention" : "Retry scheduled",
+      className: source.consecutiveFailures > 2 ? "failed" : "warning",
+    };
+  return { label: "Healthy", className: "active" };
+};
 
 export default async function CompaniesPage() {
   const data = await getCompaniesData();
@@ -58,6 +74,7 @@ export default async function CompaniesPage() {
           <div className="company-list">
             {data.companies.map((company) => {
               const source = company.sources[0];
+              const health = sourceState(company.isActive, source);
               return (
                 <article className="company-row" key={company.id}>
                   <div className="company-identity">
@@ -71,10 +88,8 @@ export default async function CompaniesPage() {
                         Careers page
                       </a>
                     </div>
-                    <span
-                      className={`status-mark ${company.isActive ? "active" : "paused"}`}
-                    >
-                      {company.isActive ? "Monitoring" : "Paused"}
+                    <span className={`status-mark ${health.className}`}>
+                      {health.label}
                     </span>
                   </div>
                   <div className="source-detail">
@@ -85,6 +100,18 @@ export default async function CompaniesPage() {
                     <code title={source?.sourceUrl}>
                       {source?.sourceUrl ?? "Source unavailable"}
                     </code>
+                    {source?.lastError ? (
+                      <p className="source-alert">
+                        {source.lastError}
+                        {source.backoffUntil ? (
+                          <>
+                            {" "}
+                            · retry{" "}
+                            <LocalTime value={source.backoffUntil} relative />
+                          </>
+                        ) : null}
+                      </p>
+                    ) : null}
                   </div>
                   <dl className="source-health">
                     <div>
