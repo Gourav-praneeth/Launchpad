@@ -221,19 +221,19 @@ select is(
   '1',
   'the batch transaction returns matched counts'
 );
-select is((select count(*) from public.job_matches), 1::bigint, 'one result is stored');
+select is((select count(*) from public.job_matches where user_id = '10000000-0000-0000-0000-000000000011'), 1::bigint, 'one result is stored');
 select is(
-  (select status::text from public.job_matches),
+  (select status::text from public.job_matches where user_id = '10000000-0000-0000-0000-000000000011'),
   'matched',
   'the explainable result status is stored'
 );
 select is(
-  (select match_reasons -> 0 ->> 'code' from public.job_matches),
+  (select match_reasons -> 0 ->> 'code' from public.job_matches where user_id = '10000000-0000-0000-0000-000000000011'),
   'title_match',
   'stable reason codes are stored'
 );
 select is(
-  (select matcher_version from public.job_matches),
+  (select matcher_version from public.job_matches where user_id = '10000000-0000-0000-0000-000000000011'),
   'deterministic-v1',
   'the matcher version is stored'
 );

@@ -106,30 +106,30 @@ select is(
   '1',
   'repeat discovery is unchanged'
 );
-select is((select count(*) from public.jobs), 1::bigint, 'repeat discovery is deduplicated');
+select is((select count(*) from public.jobs where source_id = '30000000-0000-0000-0000-000000000001'), 1::bigint, 'repeat discovery is deduplicated');
 select is(
-  (select first_seen_at from public.jobs),
+  (select first_seen_at from public.jobs where source_id = '30000000-0000-0000-0000-000000000001'),
   '2026-10-30T10:00:05Z'::timestamptz,
   'first_seen_at remains the initial observation'
 );
 select is(
-  (select last_seen_at from public.jobs),
+  (select last_seen_at from public.jobs where source_id = '30000000-0000-0000-0000-000000000001'),
   '2026-10-30T10:05:05Z'::timestamptz,
   'failed checks do not advance last_seen_at'
 );
-select is((select status::text from public.jobs), 'open', 'failed checks do not close jobs');
+select is((select status::text from public.jobs where source_id = '30000000-0000-0000-0000-000000000001'), 'open', 'failed checks do not close jobs');
 select is(
-  (select count(*) from public.job_events where event_type = 'first_seen'),
+  (select count(*) from public.job_events as event join public.jobs as job on job.id = event.job_id where job.source_id = '30000000-0000-0000-0000-000000000001' and event.event_type = 'first_seen'),
   1::bigint,
   'first_seen event is idempotent'
 );
 select is(
-  (select outcome::text from public.source_checks order by completed_at desc limit 1),
+  (select outcome::text from public.source_checks where source_id = '30000000-0000-0000-0000-000000000001' order by completed_at desc limit 1),
   'failed',
   'failed source check is audited'
 );
 
-update public.jobs set status = 'closed';
+update public.jobs set status = 'closed' where source_id = '30000000-0000-0000-0000-000000000001';
 
 insert into persistence_results
 select 'changed', public.persist_discovery_check(
@@ -169,23 +169,23 @@ select is(
   'positive observation reopens a closed job'
 );
 select is(
-  (select first_seen_at from public.jobs),
+  (select first_seen_at from public.jobs where source_id = '30000000-0000-0000-0000-000000000001'),
   '2026-10-30T10:00:05Z'::timestamptz,
   'updates never reset first_seen_at'
 );
-select is((select status::text from public.jobs), 'open', 'reobserved job is open');
+select is((select status::text from public.jobs where source_id = '30000000-0000-0000-0000-000000000001'), 'open', 'reobserved job is open');
 select is(
-  (select count(*) from public.job_events where event_type = 'updated'),
+  (select count(*) from public.job_events as event join public.jobs as job on job.id = event.job_id where job.source_id = '30000000-0000-0000-0000-000000000001' and event.event_type = 'updated'),
   1::bigint,
   'meaningful change creates one updated event'
 );
 select is(
-  (select count(*) from public.job_events where event_type = 'reopened'),
+  (select count(*) from public.job_events as event join public.jobs as job on job.id = event.job_id where job.source_id = '30000000-0000-0000-0000-000000000001' and event.event_type = 'reopened'),
   1::bigint,
   'reopening creates one reopened event'
 );
 select is(
-  (select count(*) from public.source_checks),
+  (select count(*) from public.source_checks where source_id = '30000000-0000-0000-0000-000000000001'),
   4::bigint,
   'every discovery outcome creates an audit record'
 );

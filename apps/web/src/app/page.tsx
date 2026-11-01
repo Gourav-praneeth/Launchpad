@@ -1,8 +1,8 @@
 import Link from "next/link";
 
+import { AppShell } from "@/app/app-shell";
 import { LocalTime } from "@/app/local-time";
 import { JobWorkflowControls } from "@/app/job-workflow-controls";
-import { signOut } from "@/lib/auth/actions";
 import {
   getDashboardData,
   type DashboardData,
@@ -150,42 +150,8 @@ export function DashboardView({ data, view = "newest" }: DashboardViewProps) {
       : `${newCount} relevant ${newCount === 1 ? "role was" : "roles were"} discovered in the last 24 hours.`;
 
   return (
-    <main className="app-shell">
-      <header className="mobile-bar">
-        <span className="launch-mark" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-        </span>
-        <span>Job feed</span>
-      </header>
-
-      <aside className="sidebar" aria-label="Primary navigation">
-        <div className="brand">
-          <span className="launch-mark" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span>Launchpad</span>
-        </div>
-        <p className="workspace-label">Personal workspace</p>
-        <nav>
-          <Link className="nav-link active" href="/" aria-current="page">
-            Job feed
-          </Link>
-        </nav>
-        <div className="sidebar-account">
-          <span title={data.email ?? undefined}>
-            {data.email ?? "Signed in"}
-          </span>
-          <form action={signOut}>
-            <button type="submit">Sign out</button>
-          </form>
-        </div>
-      </aside>
-
-      <section className="canvas" aria-labelledby="page-title">
+    <AppShell email={data.email} section="jobs" title="Job feed">
+      <div aria-labelledby="page-title">
         <div className="title-row">
           <div>
             <h1 id="page-title">Job feed</h1>
@@ -323,8 +289,8 @@ export function DashboardView({ data, view = "newest" }: DashboardViewProps) {
             </p>
           ) : null}
         </section>
-      </section>
-    </main>
+      </div>
+    </AppShell>
   );
 }
 
