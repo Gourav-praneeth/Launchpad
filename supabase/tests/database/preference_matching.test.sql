@@ -3,12 +3,32 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(19);
+select plan(21);
 
 insert into auth.users (id)
 values
   ('10000000-0000-0000-0000-000000000011'),
   ('10000000-0000-0000-0000-000000000012');
+
+select is(
+  (
+    select count(*)
+    from public.user_preferences
+    where user_id = '10000000-0000-0000-0000-000000000011'
+  ),
+  1::bigint,
+  'creating an auth user creates one default preference row'
+);
+
+select is(
+  (
+    select career_levels
+    from public.user_preferences
+    where user_id = '10000000-0000-0000-0000-000000000011'
+  ),
+  '["new_grad", "entry_level", "early_career"]'::jsonb,
+  'onboarding preferences use the new-grad career-level defaults'
+);
 
 insert into public.companies (id, owner_id, name, careers_url)
 values
@@ -122,18 +142,11 @@ values
     'other-open-hash'
   );
 
-insert into public.user_preferences (
-  id,
-  user_id,
-  locations,
-  workplace_types
-)
-values (
-  '50000000-0000-0000-0000-000000000011',
-  '10000000-0000-0000-0000-000000000011',
-  '["San Francisco"]'::jsonb,
-  '["hybrid"]'::jsonb
-);
+update public.user_preferences
+set id = '50000000-0000-0000-0000-000000000011',
+    locations = '["San Francisco"]'::jsonb,
+    workplace_types = '["hybrid"]'::jsonb
+where user_id = '10000000-0000-0000-0000-000000000011';
 
 select is(
   (

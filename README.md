@@ -2,7 +2,7 @@
 
 Launchpad is a freshness-first job discovery application for CS and software engineering new graduates. It monitors a curated watchlist of employers, discovers new listings from official career sources, preserves honest freshness timestamps, and will deliver fast, duplicate-safe notifications based only on explicit user preferences.
 
-> Current status: Phase 3 is complete. Deterministic preference matching and atomic, explainable result persistence are implemented. The authenticated freshness-first dashboard is next.
+> Current status: Phase 4A is implemented. Authenticated users can view a freshness-first job feed with transparent match outcomes and distinct discovery, verification, and employer-posted timestamps. Job workflow actions and watchlist management are next.
 
 ## Why Launchpad
 
@@ -31,6 +31,11 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - New-grad career-level rules, senior-role exclusion, metadata filters, keyword rules, and explicit sponsorship handling.
 - Atomic match-result persistence with preference and job stale-write protection.
 - User-owned match results with read-only browser access enforced by Row Level Security.
+- Supabase Auth sign-in and account creation with server-refreshed sessions.
+- Authenticated dashboard ordered by immutable Launchpad discovery time.
+- Separate display of discovery, verification, and employer-provided posting times.
+- Matched and review feed views that exclude deterministically rejected jobs.
+- Automatic creation of safe new-grad preference defaults for new accounts.
 - Fixture-based tests that do not depend on live employer career pages.
 
 ## Architecture
@@ -110,6 +115,7 @@ pnpm dev
 ```
 
 The dashboard is available at [http://localhost:3000](http://localhost:3000).
+Unauthenticated visitors are sent to `/login`. Creating an account automatically creates an editable preference record with the MVP new-grad defaults; email confirmation behavior follows the selected Supabase project's Auth configuration.
 
 ## Verification
 
@@ -169,6 +175,9 @@ The user must have one `public.user_preferences` row. The worker stores one vers
 - [x] Phase 2B — Atomic persistence, deduplication, events, and source health
 - [x] Phase 3 — Explicit-preference matching and transparent match reasons
 - [ ] Phase 4 — Freshness-first dashboard and job workflow states
+  - [x] Phase 4A — Authentication and freshness-first read-only job feed
+  - [ ] Phase 4B — Saved, dismissed, and applied workflow actions
+  - [ ] Phase 4C — Company watchlist and preference management
 - [ ] Phase 5 — Scheduling, email notifications, retries, and source monitoring
 - [ ] Phase 6 — End-to-end MVP validation, deployment, and maintenance docs
 
