@@ -1,6 +1,6 @@
 # ADR 0006: Atomic match-result persistence
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0011
 - Date: 2026-10-30
 
 ## Context
@@ -37,4 +37,4 @@ Authenticated clients may read their own results through Row Level Security but 
 - Notification automation can consume a stable, versioned decision table in Phase 5.
 - Concurrent discovery or preference edits cause a safe failed run that can be retried instead of mixed-version output.
 - Matching currently runs as an explicit worker command. Scheduling it after discovery and preference changes belongs to the later automation phase.
-- Each run evaluates the complete open-job snapshot. This is intentionally simple for MVP scale; batching can be introduced later with an explicit snapshot identifier if needed.
+- The original implementation evaluated the complete open-job snapshot in one request. ADR 0011 replaces that unbounded transport with paginated incremental evaluation while retaining the stale-write guarantees described here.

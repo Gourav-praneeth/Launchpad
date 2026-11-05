@@ -29,7 +29,7 @@ Launchpad never labels an inferred timestamp as employer-provided and never trea
 - Database-backed source selection and an operational discovery command.
 - Deterministic matching from explicit preferences with transparent matched, review, and rejected outcomes.
 - New-grad career-level rules, senior-role exclusion, metadata filters, keyword rules, and explicit sponsorship handling.
-- Atomic match-result persistence with preference and job stale-write protection.
+- Bounded incremental match-result persistence with preference and job stale-write protection.
 - User-owned match results with read-only browser access enforced by Row Level Security.
 - Supabase Auth sign-in and account creation with server-refreshed sessions.
 - Authenticated dashboard ordered by immutable Launchpad discovery time.
@@ -169,7 +169,7 @@ Evaluate every open job owned by one user against that user's stored preferences
   --user-id 10000000-0000-0000-0000-000000000001
 ```
 
-The user must have one `public.user_preferences` row. The worker stores one versioned, explainable result per open job. If preferences or job content change during the run, the batch fails safely and should be retried.
+The user must have one `public.user_preferences` row. The worker stores one versioned, explainable result per open job and processes only missing or stale results in bounded pages. If preferences or job content change during the run, finalization fails safely and the next cycle retries the remaining work.
 
 Run a complete local cycle without claiming or sending email:
 

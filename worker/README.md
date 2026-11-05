@@ -8,7 +8,7 @@ Phase 2B adds transaction-safe persistence. `DiscoveryRunner` records either a s
 
 Phase 3A adds a pure deterministic matcher. It evaluates normalized listings against explicit title, career-level, employment, location, workplace, keyword, and sponsorship preferences. Missing configured metadata produces a review result; clear conflicts produce a rejection. Freshness timestamps and resume data are intentionally outside the matching decision.
 
-Phase 3B adds atomic matching orchestration. The worker loads one preference snapshot and all open jobs owned by that user, evaluates them, and stores versioned explainable decisions. The database rejects stale preference timestamps, changed job content, unowned jobs, and incomplete batches.
+Phase 3B adds protected matching orchestration. The worker loads one preference snapshot and bounded pages of missing or stale open jobs, evaluates them, and stores versioned explainable decisions. The database rejects stale preference timestamps, changed job content, unowned jobs, and incomplete finalization.
 
 The worker requires server-only Supabase credentials using the `LAUNCHPAD_` environment prefix. It must never be embedded in or imported by the web client.
 
@@ -71,4 +71,4 @@ After creating a `public.user_preferences` row for an authenticated user, evalua
   --user-id 10000000-0000-0000-0000-000000000001
 ```
 
-Only the service-role worker can call the matching RPCs or write `public.job_matches`. Authenticated browser clients may read only their own results through Row Level Security. The command is safe to retry: each user/job result is upserted, while obsolete results outside the current open-job snapshot are removed.
+Only the service-role worker can call the matching RPCs or write `public.job_matches`. Authenticated browser clients may read only their own results through Row Level Security. The command is safe to retry: pages contain at most 100 stale candidates, each user/job result is upserted, and finalization removes obsolete results only after no work remains.

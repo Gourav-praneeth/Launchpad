@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
-select plan(21);
+select plan(27);
 
 insert into auth.users (id)
 values
@@ -170,28 +170,34 @@ select is(
 
 select is(
   jsonb_array_length(
-    public.get_matching_context('10000000-0000-0000-0000-000000000011') -> 'jobs'
+    public.get_matching_context_page(
+      '10000000-0000-0000-0000-000000000011', null, 100, 'deterministic-v1'
+    ) -> 'jobs'
   ),
   1,
   'matching context includes only the owner open-job snapshot'
 );
 
 select is(
-  public.get_matching_context('10000000-0000-0000-0000-000000000011')
+  public.get_matching_context_page(
+    '10000000-0000-0000-0000-000000000011', null, 100, 'deterministic-v1'
+  )
     -> 'jobs' -> 0 ->> 'id',
   '40000000-0000-0000-0000-000000000011',
   'matching context identifies the expected open job'
 );
 
 select is(
-  public.get_matching_context('10000000-0000-0000-0000-000000000011')
+  public.get_matching_context_page(
+    '10000000-0000-0000-0000-000000000011', null, 100, 'deterministic-v1'
+  )
     -> 'preference' ->> 'include_senior_roles',
   'false',
   'matching context carries the senior-role preference'
 );
 
 create temporary table matching_results as
-select public.persist_job_match_results(
+select public.persist_job_match_results_page(
   '10000000-0000-0000-0000-000000000011',
   (
     select updated_at
@@ -240,7 +246,7 @@ select is(
 
 select throws_ok(
   $$
-    select public.persist_job_match_results(
+    select public.persist_job_match_results_page(
       '10000000-0000-0000-0000-000000000011',
       '2020-01-01T00:00:00Z',
       'deterministic-v1',
@@ -252,27 +258,34 @@ select throws_ok(
   'stale preference snapshots are rejected'
 );
 
+update public.jobs
+set content_hash = 'owner-open-hash-v2'
+where id = '40000000-0000-0000-0000-000000000011';
+
 select throws_ok(
   $$
-    select public.persist_job_match_results(
+    select public.finalize_job_match_results(
       '10000000-0000-0000-0000-000000000011',
       (
         select updated_at
         from public.user_preferences
         where id = '50000000-0000-0000-0000-000000000011'
       ),
-      'deterministic-v1',
-      '[]'::jsonb
+      'deterministic-v1'
     )
   $$,
   'P0001',
-  'match results do not cover the current open-job snapshot',
-  'incomplete result batches are rejected'
+  'matching candidates remain unprocessed',
+  'finalization rejects incomplete paginated matching'
 );
+
+update public.jobs
+set content_hash = 'owner-open-hash'
+where id = '40000000-0000-0000-0000-000000000011';
 
 select throws_ok(
   $$
-    select public.persist_job_match_results(
+    select public.persist_job_match_results_page(
       '10000000-0000-0000-0000-000000000011',
       (
         select updated_at
@@ -297,10 +310,97 @@ select throws_ok(
   'stale job snapshots are rejected'
 );
 
+insert into public.jobs (
+  id,
+  company_id,
+  source_id,
+  external_job_id,
+  dedupe_key,
+  title,
+  normalized_title,
+  description,
+  apply_url,
+  canonical_apply_url,
+  first_seen_at,
+  last_seen_at,
+  last_verified_at,
+  status,
+  content_hash
+)
+values
+  (
+    '40000000-0000-0000-0000-000000000014',
+    '20000000-0000-0000-0000-000000000011',
+    '30000000-0000-0000-0000-000000000011',
+    'owner-page-1',
+    'external:owner-page-1',
+    'Software Engineer I',
+    'software engineer i',
+    'Build dependable systems.',
+    'https://owner.example.test/jobs/page-1',
+    'https://owner.example.test/jobs/page-1',
+    '2026-10-30T10:00:00Z',
+    '2026-10-30T10:00:00Z',
+    '2026-10-30T10:00:00Z',
+    'open',
+    'owner-page-1-hash'
+  ),
+  (
+    '40000000-0000-0000-0000-000000000015',
+    '20000000-0000-0000-0000-000000000011',
+    '30000000-0000-0000-0000-000000000011',
+    'owner-page-2',
+    'external:owner-page-2',
+    'Software Engineer I',
+    'software engineer i',
+    'Build dependable systems.',
+    'https://owner.example.test/jobs/page-2',
+    'https://owner.example.test/jobs/page-2',
+    '2026-10-30T10:00:00Z',
+    '2026-10-30T10:00:00Z',
+    '2026-10-30T10:00:00Z',
+    'open',
+    'owner-page-2-hash'
+  );
+
+select is(
+  jsonb_array_length(
+    public.get_matching_context_page(
+      '10000000-0000-0000-0000-000000000011', null, 1, 'deterministic-v1'
+    ) -> 'jobs'
+  ),
+  1,
+  'matching context pages are bounded by the requested limit'
+);
+select is(
+  public.get_matching_context_page(
+    '10000000-0000-0000-0000-000000000011', null, 1, 'deterministic-v1'
+  ) ->> 'has_more',
+  'true',
+  'the first bounded page reports remaining candidates'
+);
+select is(
+  public.get_matching_context_page(
+    '10000000-0000-0000-0000-000000000011', null, 1, 'deterministic-v1'
+  ) ->> 'next_cursor',
+  '40000000-0000-0000-0000-000000000014',
+  'the first bounded page returns its last job as the next cursor'
+);
+select is(
+  public.get_matching_context_page(
+    '10000000-0000-0000-0000-000000000011',
+    '40000000-0000-0000-0000-000000000014',
+    1,
+    'deterministic-v1'
+  ) -> 'jobs' -> 0 ->> 'id',
+  '40000000-0000-0000-0000-000000000015',
+  'the next keyset page starts strictly after the supplied cursor'
+);
+
 select ok(
   not has_function_privilege(
     'authenticated',
-    'public.get_matching_context(uuid)',
+    'public.get_matching_context_page(uuid,uuid,integer,text)',
     'execute'
   ),
   'authenticated clients cannot call the matching context RPC'
@@ -308,10 +408,26 @@ select ok(
 select ok(
   has_function_privilege(
     'service_role',
-    'public.get_matching_context(uuid)',
+    'public.get_matching_context_page(uuid,uuid,integer,text)',
     'execute'
   ),
   'the service role can call the matching context RPC'
+);
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.persist_job_match_results_page(uuid,timestamptz,text,jsonb)',
+    'execute'
+  ),
+  'authenticated clients cannot call paginated match persistence'
+);
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.finalize_job_match_results(uuid,timestamptz,text)',
+    'execute'
+  ),
+  'the service role can finalize paginated matching'
 );
 select ok(
   not has_table_privilege('authenticated', 'public.job_matches', 'insert'),
